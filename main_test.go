@@ -8,9 +8,14 @@ import (
 )
 
 func Test_Hello_table(t *testing.T) {
+	type header struct {
+		key   string
+		value string
+	}
 	type arg struct {
 		method     string
 		stringBody string
+		header     header
 	}
 
 	type want struct {
@@ -24,28 +29,33 @@ func Test_Hello_table(t *testing.T) {
 		want want
 	}{
 		{
+			name: "wrong content type",
+			arg:  arg{method: http.MethodPut, stringBody: "", header: header{key: "Content-Type", value: "multipart/form-data"}},
+			want: want{statusCode: http.StatusUnprocessableEntity, content: ""},
+		},
+		{
 			name: "wrong http method",
-			arg:  arg{method: http.MethodPut, stringBody: ""},
+			arg:  arg{method: http.MethodPut, stringBody: "", header: header{key: "Content-Type", value: "application/json"}},
 			want: want{statusCode: http.StatusMethodNotAllowed, content: ""},
 		},
 		{
 			name: "names is empty",
-			arg:  arg{method: http.MethodGet, stringBody: ""},
+			arg:  arg{method: http.MethodGet, stringBody: "", header: header{key: "Content-Type", value: "application/json"}},
 			want: want{statusCode: http.StatusOK, content: "{\"names\":null}\n"},
 		},
 		{
 			name: "name daniel is added",
-			arg:  arg{method: http.MethodPost, stringBody: "{\"name\":\"daniel\"}\n"},
+			arg:  arg{method: http.MethodPost, stringBody: "{\"name\":\"daniel\"}\n", header: header{key: "Content-Type", value: "application/json"}},
 			want: want{statusCode: http.StatusCreated, content: "{\"message\":\"Hello, daniel!\",\"exists\":false}\n"},
 		},
 		{
 			name: "names has daniel",
-			arg:  arg{method: http.MethodGet, stringBody: ""},
+			arg:  arg{method: http.MethodGet, stringBody: "", header: header{key: "Content-Type", value: "application/json"}},
 			want: want{statusCode: http.StatusOK, content: "{\"names\":[\"daniel\"]}\n"},
 		},
 		{
 			name: "name daniel already exist",
-			arg:  arg{method: http.MethodPost, stringBody: "{\"name\":\"daniel\"}\n"},
+			arg:  arg{method: http.MethodPost, stringBody: "{\"name\":\"daniel\"}\n", header: header{key: "Content-Type", value: "application/json"}},
 			want: want{statusCode: http.StatusOK, content: "{\"message\":\"Hello, daniel! Welcome back!\",\"exists\":true}\n"},
 		},
 	}
@@ -56,7 +66,7 @@ func Test_Hello_table(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(tt.arg.header.key, tt.arg.header.value)
 			res := httptest.NewRecorder()
 			handler := http.HandlerFunc(helloHandler)
 
